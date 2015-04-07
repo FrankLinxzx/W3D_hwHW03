@@ -1,0 +1,214 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+#info {
+    position: absolute;
+    top: 0px;
+    width: 100%;
+    padding: 10px;
+    text-align: center;
+    color: #ff0000
+}
+a {
+    color: #ffff00
+}
+}
+
+
+	strong {color: red}
+</style>
+</head>
+
+<body>
+
+
+
+<div id="container"></div>
+<div id="info">demo page
+    <br/> <a href="javascript:Toggle();">上下(加速前進,減速)左右(左右轉)鍵  </a>
+
+</div>
+
+
+
+<script src="js/three.min.js"></script>
+<script src="js/OrbitControls.js"></script>
+<script src="js/KeyboardState.js"></script>
+<script src="js/MTLLoader.js"></script>
+<script src="js/OBJMTLLoader.js"></script>
+
+<script>
+// JUST A MATTER OF MrDoob's STYLE (see ppt)
+///////////////////////////////////////////////////////
+// I. GLOBAL VARS
+var camera, scene, renderer, geometry, material, light, clock;
+var angle = 0, speed = 5;
+var controls, keyboard = new KeyboardState();
+var pos = new THREE.Vector3(0,0,0);
+var vel = 10;
+var vel2 = 10;
+init();
+animate();
+
+function init() {
+
+    scene = new THREE.Scene();
+	clock = new THREE.Clock();
+    camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 10000);
+    camera.position.z = 500;
+    scene.add(camera);
+		var floorTexture = new THREE.ImageUtils.loadTexture( 'images/floor-wood.jpg' );
+	//floorTexture.wrapS = floorTexture.wrapT = THREE.RepeatWrapping; 
+	//floorTexture.repeat.set( 4, 4 );
+	var floorMaterial = new THREE.MeshBasicMaterial( { map: floorTexture, side: THREE.DoubleSide } );
+	
+	var floorGeometry = new THREE.PlaneGeometry(150, 150);//, 10, 10);  // not clear what segment does
+	var floor = new THREE.Mesh(floorGeometry, floorMaterial);
+	floor.position.y = -0.5;
+	floor.rotation.x = Math.PI / 2;
+	 scene.add(floor);
+	 
+	 
+	 
+    THREE.ImageUtils.crossOrigin = '';
+    var colormap = THREE.ImageUtils.loadTexture('images/tire-side.png');
+    var colormap2 = THREE.ImageUtils.loadTexture('images/tire-wheel.jpg');
+
+    tire = new THREE.Object3D();
+    geometry = new THREE.CircleGeometry(20, 20);
+    material = new THREE.MeshBasicMaterial({
+        map: colormap,
+        transparent: true,  // for cut-out texture
+        side: THREE.DoubleSide
+    });
+	//front 
+    var mesh = new THREE.Mesh(geometry, material);
+
+	
+	
+	
+	//side
+	colormap2.wrapS = colormap2.wrapT = THREE.RepeatWrapping; 
+	colormap2.repeat.set( 30, 1 );
+    var mesh2 = new THREE.Mesh(new THREE.CylinderGeometry(20, 20, 10, 30, 1, true), // only side
+    new THREE.MeshBasicMaterial({
+        map: colormap2,
+        side: THREE.DoubleSide
+    }));
+    mesh2.rotation.x = Math.PI / 2;
+    mesh.position.set(0, 0, 5);
+    mesh0 = mesh.clone();
+    mesh0.position.set(0, 0, -5);
+    mesh0.rotation.y = Math.PI;
+    tire.add (mesh);
+	tire.add(mesh0);
+    
+	tire.add(mesh2);
+	
+	tire2=tire.clone();
+	tire2.position.set(0, 20, 40);
+	
+	car = new THREE.Object3D();
+	car.add(tire);
+	car.add(tire2);
+    scene.add(car);
+    
+    tire.position.set (0,20,0);
+	var lsphereMaterial = new THREE.MeshBasicMaterial ({color: 0xffff00, wireframe:true});
+	var lsphereGeometry = new THREE.SphereGeometry(1,8,8);
+	lsphere = new THREE.Mesh (lsphereGeometry, lsphereMaterial);
+	scene.add (lsphere);
+	lsphere.position.set (pos.x, pos.y+50, pos.z);
+
+
+
+    renderer = new THREE.WebGLRenderer();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setClearColor(0x000000);
+	
+    controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+    document.body.appendChild(renderer.domElement);
+}
+
+function animate() {
+    var dt = clock.getDelta();
+    
+	//controls.update();
+	
+	var dir = new THREE.Vector3(0,0,1);
+	
+	//dir.multiplyScalar (dt*speed);
+	//dir.applyAxisAngle (new THREE.Vector3(0,1,0), angle);
+	dir.multiplyScalar (dt*speed).applyAxisAngle (new THREE.Vector3(0,1,0), angle);
+
+	pos.add (dir); 	
+	
+	if (car != undefined) { 
+		car.scale.set (0.2,0.2,0.2);
+		car.position.set (pos.x, pos.y, pos.z);
+		car.rotation.y = angle+Math.PI/2;
+	}
+    requestAnimationFrame(animate);
+	
+
+	
+	var pointLight = new THREE.SpotLight (0xffffff, 1.5);
+	pointLight.position.set (pos.x, pos.y+50, pos.z);
+	//pointLight.angle = Math.PI;
+	//pointLight.exponent = 10;
+	scene.add (pointLight);
+
+    update();
+	render();
+
+    
+    //if (tire.position.z > 50 || tire.position.z < -50) sign *= -1;
+   // tire.position.z += sign*vel*dt;
+    tire.rotation.z -= vel*dt/10*1;
+    tire2.rotation.z -= vel2*dt/10*1;
+
+    //requestAnimationFrame ( animate );  
+	//renderer.render (scene, camera);
+}
+function myclamp(x,lo,hi)
+{
+	if (x < lo){
+		return lo;
+		//vel==0;
+	} 
+	if (x > hi){
+		
+		return hi;
+	} 
+	return x;
+}
+
+function update()
+{
+	controls.update();
+	keyboard.update();         
+	if ( keyboard.pressed("left") ) 
+		{angle += 0.01;  vel2+=1;}             
+	if ( keyboard.pressed("right") )
+		{angle -= 0.01;   vel2+=10;}            
+	if ( keyboard.pressed("up") )  
+		{speed += 0.5;vel+=10;vel2+=10;}        
+	if ( keyboard.pressed("down") )  
+		{speed -= 0.5; vel-=5;vel2-=5;
+		}   
+	vel=myclamp (vel, 0.0, 100.0);
+	vel2=myclamp (vel2, 0.0, 100.0);
+	speed = myclamp (speed, 0.0, 20.0);
+	//vel2=0;
+}
+function render() {
+    renderer.render(scene, camera);
+}
+</script>
+</body>
+
+</html>
